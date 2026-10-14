@@ -75,6 +75,7 @@ button:active{transform:scale(.96)}
 .hlabel{margin:6px 0 -6px;text-align:left;font-size:.75rem;letter-spacing:2px;text-transform:uppercase;color:var(--pink)}
 .cats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .cat,.sz{padding:14px 8px}
+.cat:nth-child(odd):last-child{grid-column:1/-1}
 .cat.active,.sz.active{border-color:var(--cyan);background:rgba(0,229,255,.14);box-shadow:0 0 14px rgba(0,229,255,.4);color:var(--cyan)}
 .sizes{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .playbtn{width:100%;padding:16px;font-size:1.2rem;letter-spacing:3px;text-transform:uppercase;border-color:var(--green);color:var(--green);background:rgba(57,255,136,.12);box-shadow:0 0 22px rgba(57,255,136,.45);animation:pulse 1.8s ease-in-out infinite}
@@ -96,6 +97,8 @@ button:active{transform:scale(.96)}
   <div class="best" id="bestScore"></div>
   <div class="hlabel">Category</div>
   <div class="cats" id="homeCats"></div>
+  <div class="hlabel">🧸 Kids Study</div>
+  <div class="cats" id="homeKids"></div>
   <div class="hlabel">Grid size</div>
   <div class="sizes">
     <button class="sz active" data-size="10">10 × 10</button>
@@ -156,8 +159,15 @@ const CATEGORIES={
  "💻 Tech":["LAPTOP","MOUSE","ROUTER","PYTHON","SERVER","CLOUD","ROBOT","PIXEL","CODE","DATA","CHIP","WIFI","BROWSER","KEYBOARD","SCREEN","CURSOR"],
  "💄 Beauty & Cosmetics":["LIPSTICK","MASCARA","BLUSH","SERUM","TONER","CREAM","PERFUME","EYELINER","CONCEALER","FOUNDATION","LOTION","POWDER","NAILPOLISH","PRIMER","SHAMPOO","FACEWASH"],
  "🍎 Food & Fruits":["APPLE","MANGO","BANANA","GRAPES","ORANGE","PIZZA","BURGER","BIRYANI","PASTA","LEMON","PEACH","MELON","CHERRY","KEBAB","SALAD","COOKIE"],
+ "🎨 Colors & Shapes":["RED","BLUE","GREEN","YELLOW","ORANGE","PURPLE","PINK","BROWN","BLACK","WHITE","CIRCLE","SQUARE","TRIANGLE","OVAL","STAR","HEART"],
+ "🐾 Animals & Birds":["LION","TIGER","ELEPHANT","MONKEY","ZEBRA","GIRAFFE","RABBIT","PARROT","EAGLE","PEACOCK","SPARROW","DUCK","PIGEON","CROW","HORSE","CAMEL"],
+ "🧍 Body Parts":["HEAD","EYES","NOSE","MOUTH","EARS","HAND","FINGER","ARM","LEG","FOOT","KNEE","NECK","SHOULDER","ELBOW","TEETH","HAIR"],
+ "🎒 School Items":["PENCIL","ERASER","RULER","BOOK","BAG","NOTEBOOK","SHARPENER","CHALK","BOARD","DESK","CRAYON","MARKER","SCISSORS","GLUE","CHAIR","CLASSROOM"],
+ "📅 Days & Months":["MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY","SUNDAY","JANUARY","MARCH","APRIL","JUNE","JULY","AUGUST","OCTOBER","NOVEMBER","DECEMBER"],
+ "👨‍👩‍👧 Family Members":["MOTHER","FATHER","SISTER","BROTHER","GRANDPA","GRANDMA","UNCLE","AUNTIE","COUSIN","BABY","SON","DAUGHTER","NEPHEW","NIECE","MOM","DAD"],
  "⚽ Sports":["CRICKET","FOOTBALL","TENNIS","HOCKEY","BOXING","GOLF","RUGBY","SWIMMING","CHESS","SQUASH","ARCHERY","KABADDI","BADMINTON","CYCLING","RACING","SKATING"]
 };
+const KIDS_KEYS=["🎨 Colors & Shapes","🐾 Animals & Birds","🧍 Body Parts","🎒 School Items","📅 Days & Months","👨‍👩‍👧 Family Members"];
 const COLORS=["#00e5ff","#ff2e9a","#ffe600","#39ff88","#b388ff","#ff9100","#40c4ff","#ff5252","#69f0ae","#f48fb1","#ffd740","#18ffff"];
 const DIRS=[[0,1],[1,0],[1,1],[-1,1],[0,-1],[-1,0],[-1,-1],[1,-1]];
 
@@ -169,7 +179,12 @@ const $=id=>document.getElementById(id);
 const gridEl=$("grid"),listEl=$("wordList");
 
 /* ---------- Init ---------- */
-Object.keys(CATEGORIES).forEach(k=>{const o=document.createElement("option");o.value=k;o.textContent=k;$("category").appendChild(o)});
+(function fillCategorySelect(){
+  const g1=document.createElement("optgroup");g1.label="General";
+  const g2=document.createElement("optgroup");g2.label="🧸 Kids Study";
+  Object.keys(CATEGORIES).forEach(k=>{const o=document.createElement("option");o.value=k;o.textContent=k;(KIDS_KEYS.includes(k)?g2:g1).appendChild(o)});
+  $("category").appendChild(g1);$("category").appendChild(g2);
+})();
 $("category").onchange=newGame;$("size").onchange=newGame;$("btnNew").onclick=newGame;
 $("btnAgain").onclick=()=>{$("modal").classList.remove("show");newGame()};
 $("btnHint").onclick=giveHint;$("btnPause").onclick=togglePause;$("btnResume").onclick=togglePause;
@@ -197,9 +212,9 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
   });
   // category buttons
   Object.keys(CATEGORIES).forEach((k,i)=>{
-    const b=document.createElement("button");b.className="cat"+(i===0?" active":"");b.textContent=k;
+    const b=document.createElement("button");b.className="cat"+(k===homeCat?" active":"");b.textContent=k;
     b.onclick=()=>{homeCat=k;document.querySelectorAll(".cat").forEach(x=>x.classList.toggle("active",x===b))};
-    $("homeCats").appendChild(b);
+    (KIDS_KEYS.includes(k)?$("homeKids"):$("homeCats")).appendChild(b);
   });
   // size buttons
   document.querySelectorAll(".sz").forEach(b=>{

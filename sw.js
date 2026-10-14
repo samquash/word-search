@@ -1,5 +1,5 @@
 /* Network-first: always try the latest files online, fall back to cache when offline */
-const CACHE = "word-search-v3";
+const CACHE = "word-search-v5";
 const FILES = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", e => {
