@@ -114,7 +114,7 @@ const DIRS=[[0,1],[1,0],[1,1],[-1,1],[0,-1],[-1,0],[-1,-1],[1,-1]];
 /* ---------- State ---------- */
 let N=10,grid=[],placed=[],cellEls=[];
 let seconds=0,score=0,found=0,lastFindSec=0,timerId=null,paused=false,gameOver=false;
-let dragging=false,startCell=null,tapStart=null,selCells=[];
+let dragging=false,startCell=null,tapStart=null,selCells=[],toastT=null;
 const $=id=>document.getElementById(id);
 const gridEl=$("grid"),listEl=$("wordList");
 
@@ -195,7 +195,7 @@ function cellFromEvent(e){
   if(!el||!el.classList||!el.classList.contains("cell"))return null;
   return [+el.dataset.r,+el.dataset.c];
 }
-const sameCell=(a,b)=>a&&b&&a[0]===b[0]&&a[1]===b[1];
+function sameCell(a,b){return !!(a&&b&&a[0]===b[0]&&a[1]===b[1])}
 function onDown(e){
   if(paused||gameOver)return;
   const c=cellFromEvent(e);if(!c)return;
@@ -304,9 +304,8 @@ function updateStats(){
   $("timer").textContent=fmt(seconds);$("score").textContent=score;
   $("foundCount").textContent=found+"/"+placed.length;
 }
-const fmt=s=>String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");
+function fmt(s){return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0")}
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
-let toastT;
 function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("show"),1300)}
 </script>
 </body>

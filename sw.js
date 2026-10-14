@@ -1,5 +1,5 @@
-/* Cache everything on first visit so the game works offline */
-const CACHE = "word-search-v1";
+/* Network-first: always try the latest files online, fall back to cache when offline */
+const CACHE = "word-search-v2";
 const FILES = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", e => {
@@ -12,5 +12,12 @@ self.addEventListener("activate", e => {
   self.clients.claim();
 });
 self.addEventListener("fetch", e => {
-  e.respondWith(caches.match(e.request).then(hit => hit || fetch(e.request)));
+  if (e.request.method !== "GET") return;
+  e.respondWith(
+    fetch(e.request).then(res => {
+      const copy = res.clone();
+      caches.open(CACHE).then(c => c.put(e.request, copy));
+      return res;
+    }).catch(() => caches.match(e.request))
+  );
 });
