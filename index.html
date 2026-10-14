@@ -62,10 +62,58 @@ button:active{transform:scale(.96)}
 .modal-box button{width:100%;border-color:var(--cyan)}
 #toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,80px);background:var(--panel2);border:1px solid var(--yellow);color:var(--yellow);padding:10px 18px;border-radius:999px;font-weight:600;transition:.35s;z-index:30;box-shadow:0 0 16px rgba(255,230,0,.35);pointer-events:none}
 #toast.show{transform:translate(-50%,0)}
+
+/* ---------- Home screen ---------- */
+#home{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:16px;padding:calc(24px + env(safe-area-inset-top,0px)) 18px calc(24px + env(safe-area-inset-bottom,0px));background:radial-gradient(circle at 20% 10%,rgba(0,229,255,.18),transparent 45%),radial-gradient(circle at 85% 90%,rgba(255,46,154,.18),transparent 45%),var(--bg);overflow-y:auto;text-align:center}
+#home.hide{display:none}
+#home>*{width:100%;max-width:420px}
+.tiles{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:6px}
+.tiles span{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:10px;font-weight:800;font-size:clamp(1.1rem,6vw,1.7rem);background:var(--panel2);color:var(--t);border:1px solid var(--t);box-shadow:0 0 12px var(--t);animation:bob 2.4s ease-in-out infinite;animation-delay:var(--d)}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.tag{color:var(--muted);margin:0;font-size:.95rem}
+.best{color:var(--yellow);font-weight:700;text-shadow:0 0 10px rgba(255,230,0,.5)}
+.hlabel{margin:6px 0 -6px;text-align:left;font-size:.75rem;letter-spacing:2px;text-transform:uppercase;color:var(--pink)}
+.cats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cat,.sz{padding:14px 8px}
+.cat.active,.sz.active{border-color:var(--cyan);background:rgba(0,229,255,.14);box-shadow:0 0 14px rgba(0,229,255,.4);color:var(--cyan)}
+.sizes{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.playbtn{width:100%;padding:16px;font-size:1.2rem;letter-spacing:3px;text-transform:uppercase;border-color:var(--green);color:var(--green);background:rgba(57,255,136,.12);box-shadow:0 0 22px rgba(57,255,136,.45);animation:pulse 1.8s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 34px rgba(57,255,136,.75)}}
+.homebtns{display:grid;gap:10px}
+#howto{display:none;text-align:left;background:var(--panel);border:1px solid rgba(255,46,154,.35);border-radius:16px;padding:14px 16px;font-size:.9rem;line-height:1.6;color:var(--text)}
+#howto.show{display:block}
+#howto b{color:var(--cyan)}
+.b-home{border-color:var(--cyan)}
 @media(max-width:640px){.words{flex-basis:100%}.controls button{padding:10px 8px;font-size:.82rem}}
 </style>
 </head>
 <body>
+<!-- Home screen -->
+<div id="home">
+  <div class="tiles" id="homeTiles" aria-hidden="true"></div>
+  <h1 style="margin:4px 0 0">Word Search</h1>
+  <p class="tag">Chhupe hue words dhoondo, score banao!</p>
+  <div class="best" id="bestScore"></div>
+  <div class="hlabel">Category</div>
+  <div class="cats" id="homeCats"></div>
+  <div class="hlabel">Grid size</div>
+  <div class="sizes">
+    <button class="sz active" data-size="10">10 × 10</button>
+    <button class="sz" data-size="12">12 × 12</button>
+  </div>
+  <div class="homebtns">
+    <button class="playbtn" id="btnPlay">▶ Play</button>
+    <button id="btnContinue" style="display:none;border-color:var(--yellow)">⏩ Continue Game</button>
+    <button id="btnHow">❓ How to play</button>
+  </div>
+  <div id="howto">
+    <b>1.</b> Grid mein chhupe words dhoondo: seedhe, ulte, upar-neeche ya tirchhe.<br>
+    <b>2.</b> Ungli <b>drag</b> karo, ya pehle letter par <b>tap</b> phir aakhri letter par tap karo.<br>
+    <b>3.</b> Jaldi dhoondne par <b>bonus points</b> milte hain.<br>
+    <b>4.</b> 💡 Hint pehla letter dikhata hai (-5 points).
+  </div>
+</div>
+
 <div class="app">
   <h1>Word Search</h1>
   <div class="stats">
@@ -80,6 +128,7 @@ button:active{transform:scale(.96)}
     <button class="b-hint" id="btnHint">💡 Hint</button>
     <button class="b-pause" id="btnPause">⏸ Pause</button>
     <button class="b-reset" id="btnReset">♻ Reset Score</button>
+    <button class="b-home" id="btnHome">🏠 Home</button>
   </div>
   <div class="game">
     <div class="board-wrap">
@@ -96,6 +145,7 @@ button:active{transform:scale(.96)}
     <div class="res"><div><small>TIME</small><b id="mTime">00:00</b></div><div><small>SCORE</small><b id="mScore">0</b></div></div>
     <p id="mBonus" style="margin-top:-6px"></p>
     <button id="btnAgain">▶ Play Again</button>
+    <button id="btnHomeModal" style="margin-top:8px;border-color:rgba(255,255,255,.2)">🏠 Home</button>
   </div>
 </div>
 <div id="toast"></div>
@@ -114,7 +164,7 @@ const DIRS=[[0,1],[1,0],[1,1],[-1,1],[0,-1],[-1,0],[-1,-1],[1,-1]];
 /* ---------- State ---------- */
 let N=10,grid=[],placed=[],cellEls=[];
 let seconds=0,score=0,found=0,lastFindSec=0,timerId=null,paused=false,gameOver=false;
-let dragging=false,startCell=null,tapStart=null,selCells=[],toastT=null;
+let dragging=false,startCell=null,tapStart=null,selCells=[],toastT=null,homeCat=Object.keys(CATEGORIES)[0],homeSize='10';
 const $=id=>document.getElementById(id);
 const gridEl=$("grid"),listEl=$("wordList");
 
@@ -130,9 +180,53 @@ gridEl.addEventListener("pointerup",onUp);
 gridEl.addEventListener("pointercancel",cancelSel);
 gridEl.addEventListener("contextmenu",e=>e.preventDefault());
 newGame();
+showHome();
 
 /* Offline support: register service worker */
 if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}
+
+
+/* ---------- Home screen logic ---------- */
+(function buildHome(){
+  // animated letter tiles
+  const cols=["#00e5ff","#ff2e9a","#ffe600","#39ff88","#b388ff"];
+  "WORDSEARCH".split("").forEach((ch,i)=>{
+    const s=document.createElement("span");s.textContent=ch;
+    s.style.setProperty("--t",cols[i%5]);s.style.setProperty("--d",(i*0.15)+"s");
+    $("homeTiles").appendChild(s);
+  });
+  // category buttons
+  Object.keys(CATEGORIES).forEach((k,i)=>{
+    const b=document.createElement("button");b.className="cat"+(i===0?" active":"");b.textContent=k;
+    b.onclick=()=>{homeCat=k;document.querySelectorAll(".cat").forEach(x=>x.classList.toggle("active",x===b))};
+    $("homeCats").appendChild(b);
+  });
+  // size buttons
+  document.querySelectorAll(".sz").forEach(b=>{
+    b.onclick=()=>{homeSize=b.dataset.size;document.querySelectorAll(".sz").forEach(x=>x.classList.toggle("active",x===b))};
+  });
+  $("btnPlay").onclick=()=>{
+    $("category").value=homeCat;$("size").value=homeSize;
+    $("home").classList.add("hide");newGame();
+  };
+  $("btnContinue").onclick=()=>{paused=false;$("home").classList.add("hide")};
+  $("btnHow").onclick=()=>$("howto").classList.toggle("show");
+  $("btnHome").onclick=showHome;
+  $("btnHomeModal").onclick=()=>{$("modal").classList.remove("show");showHome()};
+})();
+
+function getBest(){try{return parseInt(localStorage.getItem("ws_best"),10)||0}catch(_){return 0}}
+function saveBest(s){try{if(s>getBest())localStorage.setItem("ws_best",String(s))}catch(_){}}
+
+function showHome(){
+  paused=true;dragging=false;tapStart=null;clearSel();
+  $("pauseOverlay").classList.remove("show");$("btnPause").textContent="⏸ Pause";
+  const best=getBest();
+  $("bestScore").textContent=best?"🏆 Best Score: "+best:"";
+  const inProgress=!gameOver&&placed.length&&(seconds>0||found>0);
+  $("btnContinue").style.display=inProgress?"block":"none";
+  $("home").classList.remove("hide");
+}
 
 /* ---------- New game ---------- */
 function newGame(){
@@ -293,7 +387,7 @@ function togglePause(){
 function victory(){
   gameOver=true;clearInterval(timerId);
   const finish=Math.max(0,300-seconds);
-  score+=finish;updateStats();
+  score+=finish;saveBest(score);updateStats();
   $("mTime").textContent=fmt(seconds);$("mScore").textContent=score;
   $("mBonus").textContent=finish?"⚡ Speed bonus: +"+finish:"";
   $("modal").classList.add("show");
