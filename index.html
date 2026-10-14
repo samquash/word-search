@@ -108,6 +108,7 @@ button:active{transform:scale(.96)}
     <button class="playbtn" id="btnPlay">▶ Play</button>
     <button id="btnContinue" style="display:none;border-color:var(--yellow)">⏩ Continue Game</button>
     <button id="btnHow">❓ How to play</button>
+    <button id="btnSoundHome">🔊 Sound: On</button>
   </div>
   <div id="howto">
     <b>1.</b> Grid mein chhupe words dhoondo: seedhe, ulte, upar-neeche ya tirchhe.<br>
@@ -132,6 +133,7 @@ button:active{transform:scale(.96)}
     <button class="b-pause" id="btnPause">⏸ Pause</button>
     <button class="b-reset" id="btnReset">♻ Reset Score</button>
     <button class="b-home" id="btnHome">🏠 Home</button>
+    <button id="btnSound">🔊 Sound</button>
   </div>
   <div class="game">
     <div class="board-wrap">
@@ -174,7 +176,7 @@ const DIRS=[[0,1],[1,0],[1,1],[-1,1],[0,-1],[-1,0],[-1,-1],[1,-1]];
 /* ---------- State ---------- */
 let N=10,grid=[],placed=[],cellEls=[];
 let seconds=0,score=0,found=0,lastFindSec=0,timerId=null,paused=false,gameOver=false;
-let dragging=false,startCell=null,tapStart=null,selCells=[],toastT=null,homeCat=Object.keys(CATEGORIES)[0],homeSize='10';
+let dragging=false,startCell=null,tapStart=null,selCells=[],toastT=null,audioCtx=null,soundOn=true,homeCat=Object.keys(CATEGORIES)[0],homeSize='10';
 const $=id=>document.getElementById(id);
 const gridEl=$("grid"),listEl=$("wordList");
 
@@ -242,6 +244,49 @@ function showHome(){
   $("btnContinue").style.display=inProgress?"block":"none";
   $("home").classList.remove("hide");
 }
+
+
+/* ---------- Sound (Web Audio API: no files needed, works offline) ---------- */
+try{soundOn=localStorage.getItem("ws_sound")!=="off"}catch(_){}
+function getCtx(){
+  if(!audioCtx){try{audioCtx=new (window.AudioContext||window.webkitAudioContext)()}catch(_){return null}}
+  if(audioCtx.state==="suspended")audioCtx.resume();
+  return audioCtx;
+}
+/* one note: frequency, start delay (s), duration (s), wave type, volume */
+function tone(freq,delay,dur,type,vol){
+  if(!soundOn)return;
+  const a=getCtx();if(!a)return;
+  const t=a.currentTime+delay,o=a.createOscillator(),g=a.createGain();
+  o.type=type||"sine";o.frequency.setValueAtTime(freq,t);
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.exponentialRampToValueAtTime(vol||0.15,t+0.015);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+dur+0.05);
+}
+const sfx={
+  click(){tone(520,0,.06,"triangle",.07)},
+  tap(n){tone(420+Math.min(n,12)*35,0,.07,"triangle",.09)},               // pitch rises as the line gets longer
+  found(){[523,659,784,1047].forEach((f,i)=>tone(f,i*.09,.22,"sine",.16))}, // happy arpeggio
+  wrong(){tone(220,0,.12,"sawtooth",.08);tone(165,.1,.16,"sawtooth",.08)},
+  hint(){tone(988,0,.18,"sine",.12);tone(1319,.14,.25,"sine",.12)},
+  win(){[523,659,784,1047,784,1047,1319].forEach((f,i)=>tone(f,i*.13,.3,"triangle",.17))}
+};
+function updateSoundUI(){
+  $("btnSound").textContent=soundOn?"🔊 Sound":"🔇 Muted";
+  $("btnSoundHome").textContent=soundOn?"🔊 Sound: On":"🔇 Sound: Off";
+}
+function toggleSound(){
+  soundOn=!soundOn;
+  try{localStorage.setItem("ws_sound",soundOn?"on":"off")}catch(_){}
+  updateSoundUI();
+  if(soundOn)sfx.click();
+}
+$("btnSound").onclick=toggleSound;$("btnSoundHome").onclick=toggleSound;updateSoundUI();
+/* phones only allow audio after a touch: unlock on first tap */
+document.addEventListener("pointerdown",()=>{if(soundOn)getCtx()},{once:true});
+/* soft click on every button (except sound toggle, which plays its own) */
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("button");if(b&&b.id!=="btnSound"&&b.id!=="btnSoundHome")sfx.click()});
 
 /* ---------- New game ---------- */
 function newGame(){
@@ -349,19 +394,19 @@ function line(a,b){
   }
   return cells;
 }
-function showSelection(cells){clearSel();selCells=cells;cells.forEach(([r,c])=>cellEls[r][c].classList.add("sel"))}
+function showSelection(cells){const prev=selCells.length;clearSel();selCells=cells;if(cells.length>prev)sfx.tap(cells.length);cells.forEach(([r,c])=>cellEls[r][c].classList.add("sel"))}
 function clearSel(){selCells.forEach(([r,c])=>cellEls[r][c].classList.remove("sel"));selCells=[]}
 function checkSelection(cells){
   const str=cells.map(([r,c])=>grid[r][c]).join("");
   const rev=str.split("").reverse().join("");
   const hit=placed.find(p=>!p.found&&(p.word===str||p.word===rev));
   clearSel();
-  if(hit)markFound(hit);
+  if(hit)markFound(hit);else if(cells.length>1)sfx.wrong();
 }
 
 /* ---------- Found word ---------- */
 function markFound(p){
-  p.found=true;found++;
+  p.found=true;found++;sfx.found();
   p.cells.forEach(([r,c],i)=>{
     const el=cellEls[r][c];el.style.setProperty("--c",p.color);el.classList.add("found");
     setTimeout(()=>{el.classList.remove("pop");void el.offsetWidth;el.classList.add("pop")},i*55);
@@ -383,7 +428,7 @@ function giveHint(){
   const el=cellEls[p.cells[0][0]][p.cells[0][1]];
   el.classList.remove("hint");void el.offsetWidth;el.classList.add("hint");
   setTimeout(()=>el.classList.remove("hint"),1300);
-  score=Math.max(0,score-5);updateStats();toast("💡 Hint (-5)");
+  score=Math.max(0,score-5);updateStats();sfx.hint();toast("💡 Hint (-5)");
 }
 
 /* ---------- Timer / Pause ---------- */
@@ -400,7 +445,7 @@ function togglePause(){
 
 /* ---------- Victory ---------- */
 function victory(){
-  gameOver=true;clearInterval(timerId);
+  gameOver=true;clearInterval(timerId);sfx.win();
   const finish=Math.max(0,300-seconds);
   score+=finish;saveBest(score);updateStats();
   $("mTime").textContent=fmt(seconds);$("mScore").textContent=score;
